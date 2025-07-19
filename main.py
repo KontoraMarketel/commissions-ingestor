@@ -19,37 +19,33 @@ MINIO_BUCKET = os.getenv("MINIO_BUCKET")
 
 
 async def handle_message(msg):
-    try:
-        task_id = msg["task_id"]
-        api_token = msg["wb_token"]
-        init_date = msg["init_date"]
+    task_id = msg["task_id"]
+    api_token = msg["wb_token"]
+    init_date = msg["init_date"]
 
-        logging.info(f"Start processing task {task_id}")
+    logging.info(f"Start processing task {task_id}")
 
-        data = await fetch_commissions(api_token)
-        filename = "commissions.json"
-        prefix = f"{init_date}/{task_id}/"
-        minio_key = prefix + filename
+    data = await fetch_commissions(api_token)
+    filename = "commissions.json"
+    prefix = f"{init_date}/{task_id}/"
+    minio_key = prefix + filename
 
-        await upload_to_minio(
-            endpoint_url=MINIO_ENDPOINT,
-            access_key=MINIO_ACCESS_KEY,
-            secret_key=MINIO_SECRET_KEY,
-            bucket=MINIO_BUCKET,
-            data=data,
-            key=minio_key,
-        )
+    await upload_to_minio(
+        endpoint_url=MINIO_ENDPOINT,
+        access_key=MINIO_ACCESS_KEY,
+        secret_key=MINIO_SECRET_KEY,
+        bucket=MINIO_BUCKET,
+        data=data,
+        key=minio_key,
+    )
 
-        logging.info(f"Task {task_id} completed successfully.")
+    logging.info(f"Task {task_id} completed successfully.")
 
-        return {
-            "task_id": task_id,
-            "load_date": init_date,
-            "minio_key": minio_key
-        }
-
-    except Exception as e:
-        logging.error(f"Error processing message: {e}")
+    return {
+        "task_id": task_id,
+        "load_date": init_date,
+        "minio_key": minio_key
+    }
 
 
 async def main():
