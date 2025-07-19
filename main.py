@@ -26,7 +26,7 @@ async def handle_message(msg: bytes):
 
         logging.info(f"Start processing task {task_id}")
 
-        filename, data = await fetch_commissions(api_token)
+        data = await fetch_commissions(api_token)
         filename = "commissions.json"
         prefix = f"{init_date}/{task_id}/"
         minio_key = prefix + filename
