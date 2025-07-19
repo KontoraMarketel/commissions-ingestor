@@ -70,8 +70,10 @@ async def main():
     await consumer.start()
     try:
         async for msg in consumer:
+            logging.info(f"Message: {msg}")
             next_msg = await handle_message(msg.value)
-            await producer.send(PRODUCER_TOPIC, value=next_msg)
+            await producer.send(PRODUCER_TOPIC, value=next_msg, key=msg['task_id'])
+            logging.info(f"Message processed: {next_msg}")
     finally:
         logging.info("Stopping consumer.")
         await consumer.stop()
