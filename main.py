@@ -68,6 +68,7 @@ async def main():
     )
 
     await consumer.start()
+    await producer.start()
     try:
         async for msg in consumer:
             logging.info(f"Message: {msg}")
@@ -78,6 +79,7 @@ async def main():
     finally:
         logging.info("Stopping consumer.")
         await consumer.stop()
+        await producer.stop()
 
 
 if __name__ == "__main__":
