@@ -10,5 +10,6 @@ async def fetch_data(api_token: str) -> tuple[str, str]:
         async with session.get(url, headers=headers) as response:
             response.raise_for_status()
             data = await response.json()
+            report = data['report']
 
-    return json.dumps(data, indent=2)
+    return json.dumps(report, indent=2, ensure_ascii=False)
