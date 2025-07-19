@@ -71,11 +71,12 @@ async def main():
     await producer.start()
     try:
         async for msg in consumer:
-            logging.info(f"Message: {msg}")
-            next_msg = await handle_message(msg.value)
-            logging.info(f"Next message: {next_msg}")
-            await producer.send(PRODUCER_TOPIC, value=next_msg, key=next_msg['task_id'].encode("utf-8"))
-            logging.info(f"Message processed: {next_msg}")
+            try:
+                next_msg = await handle_message(msg.value)
+                await producer.send(PRODUCER_TOPIC, value=next_msg, key=next_msg['task_id'].encode("utf-8"))
+            except Exception as e:
+                # TODO: write task to out of the box table
+                logging.error(f"Error processing message: {e}")
     finally:
         logging.info("Stopping consumer.")
         await consumer.stop()
