@@ -18,7 +18,7 @@ MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY")
 MINIO_BUCKET = os.getenv("MINIO_BUCKET")
 
 
-async def handle_message(msg: bytes):
+async def handle_message(msg):
     try:
         task_id = msg["task_id"]
         api_token = msg["wb_token"]
@@ -72,7 +72,8 @@ async def main():
         async for msg in consumer:
             logging.info(f"Message: {msg}")
             next_msg = await handle_message(msg.value)
-            await producer.send(PRODUCER_TOPIC, value=next_msg, key=next_msg['task_id'])
+            logging.info(f"Next message: {next_msg}")
+            await producer.send(PRODUCER_TOPIC, value=next_msg, key=next_msg['task_id'].encode("utf-8"))
             logging.info(f"Message processed: {next_msg}")
     finally:
         logging.info("Stopping consumer.")
