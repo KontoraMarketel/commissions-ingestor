@@ -4,7 +4,7 @@ import asyncio
 import logging
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 
-from fetch_commissions import fetch_commissions
+from fetch_data import fetch_data
 from storage import upload_to_minio
 
 logging.basicConfig(level=logging.INFO)
@@ -25,7 +25,7 @@ async def handle_message(msg):
 
     logging.info(f"Start processing task {task_id}")
 
-    data = await fetch_commissions(api_token)
+    data = await fetch_data(api_token)
     filename = "commissions.json"
     prefix = f"{init_date}/{task_id}/"
     minio_key = prefix + filename

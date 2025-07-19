@@ -2,7 +2,7 @@ import aiohttp
 import json
 
 
-async def fetch_commissions(api_token: str) -> tuple[str, str]:
+async def fetch_data(api_token: str) -> tuple[str, str]:
     url = "https://common-api.wildberries.ru/api/v1/tariffs/commission"
     headers = {"Authorization": api_token}
 
