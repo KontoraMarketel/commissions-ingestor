@@ -26,6 +26,11 @@ async def handle_message(msg):
     logging.info(f"Start processing task {task_id}")
 
     data = await fetch_data(api_token)
+    load_data = {
+        "data": data,
+        "task_id": task_id,
+        "ts": ts
+    }
     filename = "commissions.json"
     prefix = f"{ts}/{task_id}/"
     minio_key = prefix + filename
@@ -35,7 +40,7 @@ async def handle_message(msg):
         access_key=MINIO_ACCESS_KEY,
         secret_key=MINIO_SECRET_KEY,
         bucket=MINIO_BUCKET,
-        data=data,
+        data=load_data,
         key=minio_key,
     )
 
