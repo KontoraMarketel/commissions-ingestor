@@ -5,6 +5,7 @@ import logging
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 
 from fetch_data import fetch_data
+from minio_pool import MinioClientPool
 from storage import upload_to_minio
 
 logging.basicConfig(level=logging.INFO)
@@ -17,8 +18,11 @@ MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY")
 MINIO_BUCKET = os.getenv("MINIO_BUCKET")
 
+CONCURRENT_TASKS = 100  # максимальное количество одновременных задач
+semaphore = asyncio.Semaphore(CONCURRENT_TASKS)
 
-async def handle_message(msg):
+
+async def handle_message(msg, minio_pool: MinioClientPool):
     task_id = msg["task_id"]
     api_token = msg["wb_token"]
     ts = msg["ts"]
@@ -36,9 +40,7 @@ async def handle_message(msg):
     minio_key = prefix + filename
 
     await upload_to_minio(
-        endpoint_url=MINIO_ENDPOINT,
-        access_key=MINIO_ACCESS_KEY,
-        secret_key=MINIO_SECRET_KEY,
+        pool=minio_pool,
         bucket=MINIO_BUCKET,
         data=load_data,
         key=minio_key,
@@ -53,11 +55,26 @@ async def handle_message(msg):
     }
 
 
+async def process_and_produce(msg_value, producer, minio_pool):
+    async with semaphore:
+        try:
+            next_msg = await handle_message(msg_value, minio_pool)
+            encoded_task_id = str(next_msg["task_id"]).encode("utf-8")
+            await producer.send(
+                PRODUCER_TOPIC,
+                value=next_msg,
+                key=encoded_task_id,
+            )
+        except Exception as e:
+            logging.error(f"Error processing message: {e}")
+            # TODO: write task to out of the box table
+
+
 async def main():
     consumer = AIOKafkaConsumer(
         CONSUMER_TOPIC,
         bootstrap_servers=BOOTSTRAP_SERVERS,
-        group_id="commission-ingestors",
+        group_id="sales-ingestors",
         auto_offset_reset="earliest",
         enable_auto_commit=True,
         value_deserializer=lambda m: json.loads(m.decode("utf-8")),
@@ -68,20 +85,27 @@ async def main():
         value_serializer=lambda v: json.dumps(v).encode("utf-8"),
     )
 
+    minio_pool = MinioClientPool(
+        endpoint_url=MINIO_ENDPOINT,
+        access_key=MINIO_ACCESS_KEY,
+        secret_key=MINIO_SECRET_KEY,
+        size=5,
+    )
+    await minio_pool.start()
+
     await consumer.start()
     await producer.start()
+    tasks = set()
     try:
         async for msg in consumer:
-            try:
-                next_msg = await handle_message(msg.value)
-                await producer.send(PRODUCER_TOPIC, value=next_msg, key=next_msg['task_id'].encode("utf-8"))
-            except Exception as e:
-                # TODO: write task to out of the box table
-                logging.error(f"Error processing message: {e}")
+            task = asyncio.create_task(process_and_produce(msg.value, producer, minio_pool))
+            tasks.add(task)
+            task.add_done_callback(tasks.discard)
     finally:
-        logging.info("Stopping consumer.")
+        logging.info("Stopping consumer. Waiting for tasks to finish...")
         await consumer.stop()
         await producer.stop()
+        await asyncio.gather(*tasks, return_exceptions=True)
 
 
 if __name__ == "__main__":
