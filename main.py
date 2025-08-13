@@ -50,7 +50,7 @@ async def handle_message(msg, minio_pool: MinioClientPool):
 
     return {
         "task_id": task_id,
-        "load_date": ts,
+        "ts": ts,
         "minio_key": minio_key
     }
 
